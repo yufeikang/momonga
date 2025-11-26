@@ -23,12 +23,14 @@ class MomongaSessionManager:
                  dev: str,
                  baudrate: int = 115200,
                  reset_dev: bool = True,
+                 is_bp35a1: bool = False,
                 ) -> None:
         self.dev = dev
         self.baudrate = baudrate
         self.rbid = rbid
         self.pwd = pwd
         self.reset_dev = reset_dev
+        self.is_bp35a1 = is_bp35a1
 
         # the following value will be set a pyserial object.
         self.skw = MomongaSkWrapper(dev, baudrate)
@@ -80,7 +82,7 @@ class MomongaSessionManager:
             logger.info('The Route-B ID and the password were registered.')
             try:
                 logger.info('Scanning PAN channels...')
-                scan_res = self.skw.skscan()
+                scan_res = self.skw.skscan(is_bp35a1=self.is_bp35a1)
                 logger.info('A PAN was found.')
             except MomongaSkScanFailure:
                 logger.error('Gave up to find a PAN. Check the device location and Route-B ID. Then try again.')
@@ -246,7 +248,7 @@ class MomongaSessionManager:
             assert self.session_established is not False, 'Tried to transmit a packet, but no PANA session was established.'
 
             try:
-                self.skw.sksendto(self.smart_meter_addr, data)
+                self.skw.sksendto(self.smart_meter_addr, data, is_bp35a1=self.is_bp35a1)
                 xmitted = True
                 break
             except MomongaSkCommandExecutionFailure as e:

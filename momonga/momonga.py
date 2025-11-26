@@ -516,6 +516,7 @@ class Momonga:
                  dev: str,
                  baudrate: int = 115200,
                  reset_dev: bool = True,
+                 is_bp35a1: bool = False
                  ) -> None:
         self.xmit_retries: int = 12
         self.recv_timeout: int | float = 12
@@ -524,7 +525,8 @@ class Momonga:
         self.energy_unit: int | float = 1
         self.energy_coefficient: int = 1
         self.is_open: bool = False
-        self.session_manager = MomongaSessionManager(rbid, pwd, dev, baudrate, reset_dev)
+        self.is_bp35a1 = is_bp35a1
+        self.session_manager = MomongaSessionManager(rbid, pwd, dev, baudrate, reset_dev, is_bp35a1=self.is_bp35a1)
 
     def __init_energy_unit(self) -> None:
         logger.debug('Initializing the energy unit and coefficient.')
@@ -704,7 +706,7 @@ class Momonga:
                     logger.info('Received a neighbor advertisement packet.')
                     continue
                 elif res.startswith('ERXUDP'):
-                    udp_pkt = SkEventRxUdp([res])
+                    udp_pkt = SkEventRxUdp([res], is_bp35a1=self.is_bp35a1)
                     if not (udp_pkt.src_port == udp_pkt.dst_port == 0x0E1A):
                         continue
                     elif udp_pkt.side != 0:
