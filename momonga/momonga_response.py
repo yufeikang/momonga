@@ -36,7 +36,7 @@ class SkInfoResponse(MomongaSkResponseBase):
         self.mac_addr = bytes.fromhex(res_list[2])
         self.channel = int(res_list[3], 16)
         self.pan_id = bytes.fromhex(res_list[4])
-        self.side = None if self.is_bp35a1 else int(res_list[5], 16)
+        self.side = int(res_list[5], 16)
 
 
 class SkScanResponse(MomongaSkResponseBase):

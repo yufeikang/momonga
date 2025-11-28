@@ -37,6 +37,7 @@ class MomongaSkWrapper:
         self.publisher_th_breaker = False
         self.publisher_th = None
         self.subscribers = {'cmd_exec_q': queue.Queue()}
+        self.is_bp35a1 = False
 
     def __enter__(self) -> Self:
         return self.open()
@@ -232,9 +233,11 @@ class MomongaSkWrapper:
     def skreset(self) -> None:
         self.exec_command(['SKRESET'])
 
-    def skinfo(self, is_bp35a1: bool = False) -> SkInfoResponse:
-        res = self.exec_command(['SKINFO'])
-        return SkInfoResponse(res, is_bp35a1=is_bp35a1)
+    def skinfo(self) -> SkInfoResponse:
+        res = SkInfoResponse(self.exec_command(['SKINFO']))
+        if res.side > 1:
+            self.is_bp35a1 = True
+        return res
 
     def sksreg(self,
                reg: str,
@@ -257,17 +260,16 @@ class MomongaSkWrapper:
         self.exec_command(['SKSETPWD', '%X' % len(pwd), pwd])
 
     def skscan(self,
-               retry: int = 3,
-               is_bp35a1: bool = False) -> SkScanResponse:
+               retry: int = 3) -> SkScanResponse:
         duration = 6
         for _ in range(retry):
             logger.debug('Trying to scan a PAN... Duration: %d' % duration)
-            res = self.exec_command(['SKSCAN', '2', 'FFFFFFFF', str(duration), '0' if not is_bp35a1 else None], 'EVENT 22')
+            res = self.exec_command(['SKSCAN', '2', 'FFFFFFFF', str(duration), '0' if not self.is_bp35a1 else None], 'EVENT 22')
             # estimated execution time: 0.0096s*(2^(DURATION=6)+1)*28 = 17.5s
             # estimated execution time: 0.0096s*(2^(DURATION=7)+1)*28 = 34.7s
             # estimated execution time: 0.0096s*(2^(DURATION=8)+1)*28 = 69.1s
             if 'EPANDESC' in res:
-                return SkScanResponse(res, is_bp35a1=is_bp35a1)
+                return SkScanResponse(res, is_bp35a1=self.is_bp35a1)
             duration += 1
         raise MomongaSkScanFailure('Could not find the specified PAN.')
 
@@ -302,9 +304,8 @@ class MomongaSkWrapper:
                  handle: int = 1,
                  port: int = 0x0E1A,
                  sec: int = 2,
-                 side: int = 0,
-                 is_bp35a1: bool = False,
+                 side: int = 0
                  ) -> None:
         self.exec_command(['SKSENDTO', str(handle), ip6_addr, '%04X' % port,
-                           str(sec), str(side) if not is_bp35a1 else None, '%04X' % len(data)],
+                           str(sec), str(side) if not self.is_bp35a1 else None, '%04X' % len(data)],
                           payload=data)
