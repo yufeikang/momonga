@@ -709,7 +709,7 @@ class Momonga:
                     udp_pkt = SkEventRxUdp([res], is_bp35a1=self.is_bp35a1)
                     if not (udp_pkt.src_port == udp_pkt.dst_port == 0x0E1A):
                         continue
-                    elif udp_pkt.side != 0:
+                    elif udp_pkt.side != 0 and udp_pkt.side is not None:
                         continue
                     elif udp_pkt.src_addr != self.session_manager.smart_meter_addr:
                         continue
