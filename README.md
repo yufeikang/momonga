@@ -11,6 +11,7 @@ MomongaはBルートサービスを利用してスマートメーターと通信
 # Tested Devices
 - ラトックシステム RS-WSUHA-P
 - テセラ・テクノロジー RL7023 Stick-D/DSS
+- テセラ・テクノロジー RL7023 Stick-D/IPS
 
 # Note
 - Momongaは`WOPT 01\r`コマンドを実行して、Wi-SUNモジュールがUDPパケットのペイロードをASCIIフォーマットで出力するように設定します。注意: WOPTコマンドは実行回数に制限があるので初回のみ実行し、その設定はWi-SUNモジュールに保存されます。
