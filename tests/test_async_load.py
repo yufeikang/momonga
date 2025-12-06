@@ -74,9 +74,9 @@ class TestAsyncMomongaLoad(unittest.IsolatedAsyncioTestCase):
         async with AsyncMomonga(**self.conn_params) as amo:
             start = time.time()
             
-            # 5 sequential requests
+            # 20 sequential requests
             results = []
-            for i in range(5):
+            for i in range(20):
                 power = await amo.get_instantaneous_power()
                 results.append(power)
                 print(f"  Request {i+1}: {power}W")
@@ -87,7 +87,7 @@ class TestAsyncMomongaLoad(unittest.IsolatedAsyncioTestCase):
             print(f"  Total time: {elapsed:.2f}s")
             print(f"  Average time/request: {elapsed/len(results):.2f}s")
             
-            self.assertEqual(len(results), 5)
+            self.assertEqual(len(results), 20)
     
     async def test_concurrent_requests_same_property(self):
         """
@@ -99,10 +99,9 @@ class TestAsyncMomongaLoad(unittest.IsolatedAsyncioTestCase):
         async with AsyncMomonga(**self.conn_params) as amo:
             start = time.time()
             
-            # Issue 5 concurrent requests
             tasks = [
                 amo.get_instantaneous_power()
-                for _ in range(5)
+                for _ in range(20)
             ]
             
             results = await asyncio.gather(*tasks)
@@ -113,7 +112,7 @@ class TestAsyncMomongaLoad(unittest.IsolatedAsyncioTestCase):
             print(f"  Average time/request: {elapsed/len(results):.2f}s")
             print(f"  Result samples: {results[:3]}")
             
-            self.assertEqual(len(results), 5)
+            self.assertEqual(len(results), 20)
             # Verify that all results are numeric
             for power in results:
                 self.assertIsInstance(power, (int, float))
@@ -175,8 +174,8 @@ class TestAsyncMomongaLoad(unittest.IsolatedAsyncioTestCase):
         async with AsyncMomonga(**self.conn_params) as amo:
             start = time.time()
             
-            # 10 concurrent requests
-            num_requests = 10
+            # 50 concurrent requests
+            num_requests = 50
             tasks = [
                 amo.get_instantaneous_power()
                 for _ in range(num_requests)
@@ -210,8 +209,8 @@ class TestAsyncMomongaLoad(unittest.IsolatedAsyncioTestCase):
         """
         print("\n=== Long-Running Monitoring Test ===")
         
-        duration_seconds = 30
-        interval_seconds = 5
+        duration_seconds = 60
+        interval_seconds = 1
         
         async with AsyncMomonga(**self.conn_params) as amo:
             start = time.time()
