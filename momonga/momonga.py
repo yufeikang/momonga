@@ -704,10 +704,10 @@ class Momonga:
                     logger.info('Received a neighbor advertisement packet.')
                     continue
                 elif res.startswith('ERXUDP'):
-                    udp_pkt = SkEventRxUdp([res])
+                    udp_pkt = SkEventRxUdp([res], device_type=self.session_manager.skw.device_type)
                     if not (udp_pkt.src_port == udp_pkt.dst_port == 0x0E1A):
                         continue
-                    elif udp_pkt.side != 0:
+                    elif udp_pkt.side:
                         continue
                     elif udp_pkt.src_addr != self.session_manager.smart_meter_addr:
                         continue
