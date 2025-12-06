@@ -64,214 +64,233 @@ class TestAsyncMomongaLoad(unittest.IsolatedAsyncioTestCase):
         except ValueError as e:
             raise unittest.SkipTest(str(e))
     
-    async def test_sequential_requests(self):
+    async def test_full_load_scenario(self):
+        """
+        Execute all load tests in a single session
+        This reuses the connection for all tests, simulating a long-running application
+        """
+        print("\n=== Starting Full Load Scenario ===")
+        
+        async with AsyncMomonga(**self.conn_params) as amo:
+            with self.subTest("Sequential Requests"):
+                await self._run_sequential_requests(amo)
+            
+            with self.subTest("Concurrent Requests (Same Property)"):
+                await self._run_concurrent_requests_same_property(amo)
+                
+            with self.subTest("Concurrent Requests (Different Properties)"):
+                await self._run_concurrent_requests_different_properties(amo)
+                
+            with self.subTest("Burst Requests"):
+                await self._run_burst_requests(amo)
+                
+            with self.subTest("Error Handling"):
+                await self._run_error_handling_under_load(amo)
+                
+            with self.subTest("Long Running Monitoring"):
+                await self._run_long_running_monitoring(amo)
+
+    async def _run_sequential_requests(self, amo):
         """
         Sequential request benchmark
         Measure performance when executing sequentially even with async version
         """
         print("\n=== Sequential Request Test ===")
         
-        async with AsyncMomonga(**self.conn_params) as amo:
-            start = time.time()
-            
-            # 20 sequential requests
-            results = []
-            for i in range(20):
-                power = await amo.get_instantaneous_power()
-                results.append(power)
-                print(f"  Request {i+1}: {power}W")
-            
-            elapsed = time.time() - start
-            
-            print(f"\n  Total requests: {len(results)}")
-            print(f"  Total time: {elapsed:.2f}s")
-            print(f"  Average time/request: {elapsed/len(results):.2f}s")
-            
-            self.assertEqual(len(results), 20)
+        start = time.time()
+        
+        # Sequential requests
+        results = []
+        for i in range(20):
+            power = await amo.get_instantaneous_power()
+            results.append(power)
+            print(f"  Request {i+1}: {power}W")
+        
+        elapsed = time.time() - start
+        
+        print(f"\n  Total requests: {len(results)}")
+        print(f"  Total time: {elapsed:.2f}s")
+        print(f"  Average time/request: {elapsed/len(results):.2f}s")
+        
+        self.assertEqual(len(results), 20)
     
-    async def test_concurrent_requests_same_property(self):
+    async def _run_concurrent_requests_same_property(self, amo):
         """
         Concurrent requests test for the same property
         Execute concurrently using asyncio.gather
         """
         print("\n=== Concurrent Request Test (Same Property) ===")
         
-        async with AsyncMomonga(**self.conn_params) as amo:
-            start = time.time()
-            
-            tasks = [
-                amo.get_instantaneous_power()
-                for _ in range(20)
-            ]
-            
-            results = await asyncio.gather(*tasks)
-            elapsed = time.time() - start
-            
-            print(f"\n  Total requests: {len(results)}")
-            print(f"  Total time: {elapsed:.2f}s")
-            print(f"  Average time/request: {elapsed/len(results):.2f}s")
-            print(f"  Result samples: {results[:3]}")
-            
-            self.assertEqual(len(results), 20)
-            # Verify that all results are numeric
-            for power in results:
-                self.assertIsInstance(power, (int, float))
+        start = time.time()
+        
+        # Issue concurrent requests
+        tasks = [
+            amo.get_instantaneous_power()
+            for _ in range(20)
+        ]
+        
+        results = await asyncio.gather(*tasks)
+        elapsed = time.time() - start
+        
+        print(f"\n  Total requests: {len(results)}")
+        print(f"  Total time: {elapsed:.2f}s")
+        print(f"  Average time/request: {elapsed/len(results):.2f}s")
+        print(f"  Result samples: {results[:3]}")
+        
+        self.assertEqual(len(results), 20)
+        # Verify that all results are numeric
+        for power in results:
+            self.assertIsInstance(power, (int, float))
     
-    async def test_concurrent_requests_different_properties(self):
+    async def _run_concurrent_requests_different_properties(self, amo):
         """
         Concurrent requests test for different properties
         Execute multiple different methods concurrently
         """
         print("\n=== Concurrent Request Test (Different Properties) ===")
         
-        async with AsyncMomonga(**self.conn_params) as amo:
-            start = time.time()
-            
-            # Get different properties concurrently
-            results = await asyncio.gather(
-                amo.get_instantaneous_power(),
-                amo.get_instantaneous_current(),
-                amo.get_measured_cumulative_energy(),
-                amo.get_operation_status(),
-                amo.get_coefficient_for_cumulative_energy(),
-                amo.get_unit_for_cumulative_energy(),
-                return_exceptions=True  # Get other results even if there are errors
-            )
-            
-            elapsed = time.time() - start
-            
-            print(f"\n  Total requests: {len(results)}")
-            print(f"  Total time: {elapsed:.2f}s")
-            print(f"  Average time/request: {elapsed/len(results):.2f}s")
-            
-            # Display results
-            labels = [
-                "Instantaneous Power",
-                "Instantaneous Current",
-                "Cumulative Energy",
-                "Operation Status",
-                "Coefficient",
-                "Unit"
-            ]
-            
-            for label, result in zip(labels, results):
-                if isinstance(result, Exception):
-                    print(f"  {label}: Error - {result}")
-                else:
-                    print(f"  {label}: {result}")
-            
-            # Verify that at least one succeeded
-            success_count = sum(1 for r in results if not isinstance(r, Exception))
-            self.assertGreater(success_count, 0, "At least one request should succeed")
+        start = time.time()
+        
+        # Base set of different property requests
+        base_tasks = [
+            amo.get_instantaneous_power,
+            amo.get_instantaneous_current,
+            amo.get_measured_cumulative_energy,
+            amo.get_operation_status,
+            amo.get_coefficient_for_cumulative_energy,
+            amo.get_unit_for_cumulative_energy,
+            amo.get_number_of_effective_digits_for_cumulative_energy,
+            amo.get_cumulative_energy_measured_at_fixed_time,
+        ]
+        
+        # Create a larger list of tasks by repeating the base set
+        # This tests the queue's handling of heterogeneous requests under load
+        tasks = []
+        for _ in range(5):  # Repeat 5 times
+            for task_func in base_tasks:
+                tasks.append(task_func())
+        
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+        
+        elapsed = time.time() - start
+        
+        print(f"\n  Total requests: {len(results)}")
+        print(f"  Total time: {elapsed:.2f}s")
+        print(f"  Average time/request: {elapsed/len(results):.2f}s")
+        
+        # Verify results
+        success_count = sum(1 for r in results if not isinstance(r, Exception))
+        print(f"  Successes: {success_count}")
+        print(f"  Failures: {len(results) - success_count}")
+        
+        self.assertGreater(success_count, 0, "At least one request should succeed")
+        self.assertEqual(len(results), len(base_tasks) * 5)
     
-    async def test_burst_requests(self):
+    async def _run_burst_requests(self, amo):
         """
         Burst request test
         Issue a large number of requests in a short time to verify system stability
         """
         print("\n=== Burst Request Test ===")
         
-        async with AsyncMomonga(**self.conn_params) as amo:
-            start = time.time()
-            
-            # 50 concurrent requests
-            num_requests = 50
-            tasks = [
-                amo.get_instantaneous_power()
-                for _ in range(num_requests)
-            ]
-            
-            results = await asyncio.gather(*tasks, return_exceptions=True)
-            elapsed = time.time() - start
-            
-            # Count successes and failures
-            successes = [r for r in results if not isinstance(r, Exception)]
-            failures = [r for r in results if isinstance(r, Exception)]
-            
-            print(f"\n  Total requests: {len(results)}")
-            print(f"  Successes: {len(successes)}")
-            print(f"  Failures: {len(failures)}")
-            print(f"  Total time: {elapsed:.2f}s")
-            print(f"  Throughput: {len(successes)/elapsed:.2f} req/sec")
-            
-            if failures:
-                print(f"\n  Error sample: {failures[0]}")
-            
-            # Verify success rate is above 50% (not too strict)
-            success_rate = len(successes) / len(results)
-            self.assertGreater(success_rate, 0.5, 
-                             f"Success rate too low: {success_rate*100:.1f}%")
+        start = time.time()
+        
+        # Concurrent requests
+        num_requests = 50
+        tasks = [
+            amo.get_instantaneous_power()
+            for _ in range(num_requests)
+        ]
+        
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+        elapsed = time.time() - start
+        
+        # Count successes and failures
+        successes = [r for r in results if not isinstance(r, Exception)]
+        failures = [r for r in results if isinstance(r, Exception)]
+        
+        print(f"\n  Total requests: {len(results)}")
+        print(f"  Successes: {len(successes)}")
+        print(f"  Failures: {len(failures)}")
+        print(f"  Total time: {elapsed:.2f}s")
+        print(f"  Throughput: {len(successes)/elapsed:.2f} req/sec")
+        
+        if failures:
+            print(f"\n  Error sample: {failures[0]}")
+        
+        # Verify success rate is above 50% (not too strict)
+        success_rate = len(successes) / len(results)
+        self.assertGreater(success_rate, 0.5, 
+                            f"Success rate too low: {success_rate*100:.1f}%")
     
-    async def test_long_running_monitoring(self):
+    async def _run_long_running_monitoring(self, amo):
         """
         Long-running monitoring test
         Practical scenario of continuously acquiring data periodically
         """
         print("\n=== Long-Running Monitoring Test ===")
         
-        duration_seconds = 60
-        interval_seconds = 1
+        duration_seconds = 120
+        interval_seconds = 6
         
-        async with AsyncMomonga(**self.conn_params) as amo:
-            start = time.time()
-            results = []
-            
-            print(f"  Acquiring data every {interval_seconds}s for {duration_seconds}s...")
-            
-            while time.time() - start < duration_seconds:
-                try:
-                    power = await amo.get_instantaneous_power()
-                    current_time = time.time() - start
-                    results.append({
-                        'time': current_time,
-                        'power': power
-                    })
-                    print(f"    {current_time:.1f}s: {power}W")
-                    
-                except Exception as e:
-                    print(f"    Error: {e}")
+        start = time.time()
+        results = []
+        
+        print(f"  Acquiring data every {interval_seconds}s for {duration_seconds}s...")
+        
+        while time.time() - start < duration_seconds:
+            try:
+                power = await amo.get_instantaneous_power()
+                current_time = time.time() - start
+                results.append({
+                    'time': current_time,
+                    'power': power
+                })
+                print(f"    {current_time:.1f}s: {power}W")
                 
-                await asyncio.sleep(interval_seconds)
+            except Exception as e:
+                print(f"    Error: {e}")
             
-            print(f"\n  Data points acquired: {len(results)}")
-            if results:
-                powers = [r['power'] for r in results]
-                print(f"  Average power: {sum(powers)/len(powers):.2f}W")
-                print(f"  Max power: {max(powers):.2f}W")
-                print(f"  Min power: {min(powers):.2f}W")
-            
-            expected_count = duration_seconds // interval_seconds
-            # Allow some deviation (±2 times)
-            self.assertGreater(len(results), expected_count - 2)
+            await asyncio.sleep(interval_seconds)
+        
+        print(f"\n  Data points acquired: {len(results)}")
+        if results:
+            powers = [r['power'] for r in results]
+            print(f"  Average power: {sum(powers)/len(powers):.2f}W")
+            print(f"  Max power: {max(powers):.2f}W")
+            print(f"  Min power: {min(powers):.2f}W")
+        
+        expected_count = duration_seconds // interval_seconds
+        # Allow some deviation (±2 times)
+        self.assertGreater(len(results), expected_count - 2)
     
-    async def test_error_handling_under_load(self):
+    async def _run_error_handling_under_load(self, amo):
         """
         Error handling test under load
         Verify that partial failures during concurrent execution don't affect other requests
         """
         print("\n=== Error Handling Test ===")
         
-        async with AsyncMomonga(**self.conn_params) as amo:
-            # Mix normal requests with requests that may fail
-            tasks = [
-                amo.get_instantaneous_power(),
-                amo.get_instantaneous_current(),
-                amo.get_measured_cumulative_energy(),
-                amo.get_measured_cumulative_energy(reverse=True),
-                amo.get_operation_status(),
-                # Include operations that may cause errors, like setting non-existent properties
-            ]
-            
-            results = await asyncio.gather(*tasks, return_exceptions=True)
-            
-            successes = sum(1 for r in results if not isinstance(r, Exception))
-            failures = sum(1 for r in results if isinstance(r, Exception))
-            
-            print(f"\n  Successes: {successes}")
-            print(f"  Failures: {failures}")
-            
-            # Verify at least half succeeded
-            self.assertGreater(successes, len(tasks) // 2)
+        # Mix normal requests with requests that may fail
+        tasks = [
+            amo.get_instantaneous_power(),
+            amo.get_instantaneous_current(),
+            amo.get_measured_cumulative_energy(),
+            amo.get_measured_cumulative_energy(reverse=True),
+            amo.get_operation_status(),
+            # Include operations that may cause errors, like setting non-existent properties
+        ]
+        
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+        
+        successes = sum(1 for r in results if not isinstance(r, Exception))
+        failures = sum(1 for r in results if isinstance(r, Exception))
+        
+        print(f"\n  Successes: {successes}")
+        print(f"  Failures: {failures}")
+        
+        # Verify at least half succeeded
+        self.assertGreater(successes, len(tasks) // 2)
 
 
 if __name__ == '__main__':

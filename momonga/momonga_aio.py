@@ -6,7 +6,7 @@ from concurrent.futures import Executor
 
 from .momonga import Momonga
 from .momonga_device_enum import DeviceType
-from .momonga_exception import MomongaError
+from .momonga_exception import MomongaError, MomongaSkScanFailure
 
 logger = logging.getLogger(__name__)
 
@@ -104,8 +104,20 @@ class AsyncMomonga:
                     fut.set_exception(MomongaError("worker stopped unexpectedly"))
                 self._queue.task_done()
 
-    async def open(self) -> Self:
-        await self._run_in_executor(self._sync_client.open)
+    async def open(self, retry_count: int = 3, retry_interval: float = 2.0) -> Self:
+        last_error = None
+        for i in range(retry_count + 1):
+            try:
+                await self._run_in_executor(self._sync_client.open)
+                return self
+            except MomongaSkScanFailure as e:
+                last_error = e
+                if i < retry_count:
+                    logger.warning(f"Scan failed, retrying ({i+1}/{retry_count})...")
+                    await asyncio.sleep(retry_interval)
+        
+        if last_error:
+            raise last_error
         return self
 
     async def close(self) -> None:
