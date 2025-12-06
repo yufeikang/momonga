@@ -74,8 +74,8 @@ class TestAsyncMomongaLoad(unittest.IsolatedAsyncioTestCase):
             with self.subTest("Burst Requests"):
                 await self._run_burst_requests(amo)
 
-            with self.subTest("Concurrent Requests (Different Properties)"):
-                await self._run_concurrent_requests_different_properties(amo)
+            with self.subTest("Concurrent Requests"):
+                await self._run_concurrent_requests(amo)
 
             with self.subTest("Error Handling"):
                 await self._run_error_handling_under_load(amo)
@@ -138,12 +138,12 @@ class TestAsyncMomongaLoad(unittest.IsolatedAsyncioTestCase):
         self.assertGreater(len(results['energy']), expected_energy * 0.8)
 
     
-    async def _run_concurrent_requests_different_properties(self, amo):
+    async def _run_concurrent_requests(self, amo):
         """
-        Concurrent requests test for different properties
+        Concurrent requests test
         Execute multiple different methods concurrently
         """
-        print("\n=== Concurrent Request Test (Different Properties) ===")
+        print("\n=== Concurrent Request Test ===")
         
         start = time.time()
         
