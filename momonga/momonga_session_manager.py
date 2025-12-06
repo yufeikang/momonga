@@ -228,7 +228,7 @@ class MomongaSessionManager:
             logger.debug('Trying to acquire "xmit_lock".')
             locked = False
             for r in range(retry_to_acquire_xmit_lock):
-                locked = self.xmit_lock.acquire(timeout=60)
+                locked = self.xmit_lock.acquire(timeout=300)
                 if locked is False:
                     logger.warning('Could not acquire "xmit_lock". (%d/%d)' % (r + 1, retry_to_acquire_xmit_lock))
                     if self.receiver_exception is not None:
