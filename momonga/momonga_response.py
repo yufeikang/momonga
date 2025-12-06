@@ -7,7 +7,6 @@ logger = logging.getLogger(__name__)
 
 
 class MomongaSkResponseBase:
-class MomongaSkResponseBase:
     def __init__(self, res):
         self.raw_response = res
         self.decode()
