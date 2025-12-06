@@ -51,6 +51,7 @@ def get_connection_params() -> Dict[str, Any]:
         'dev': dev,
         'baudrate': baudrate,
     }
+
 class TestAsyncMomongaLoad(unittest.IsolatedAsyncioTestCase):
     """Async load testing with real hardware"""
     
