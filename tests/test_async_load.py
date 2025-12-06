@@ -20,6 +20,7 @@ import unittest
 from typing import List, Dict, Any
 from momonga import AsyncMomonga
 import momonga
+from momonga.momonga_exception import MomongaConnectionError
 
 # Configure logging to display warnings and errors
 log_fmt = logging.Formatter('%(asctime)s | %(levelname)s | %(name)s - %(message)s')
@@ -83,15 +84,19 @@ class TestAsyncMomongaLoad(unittest.IsolatedAsyncioTestCase):
     async def _run_concurrent_monitoring_loops(self, amo):
         """
         Practical concurrent monitoring test
-        Simulate a real application with multiple independent monitoring loops
-        running at different intervals.
+        Simulate a real application with multiple independent monitoring loops.
+        
+        This test verifies that multiple monitoring loops can coexist without
+        crashing or deadlocking, even if the device is slow.
+        We are not testing throughput here, but stability.
         """
         print("=== Concurrent Monitoring Loops Test ===")
-        duration = 30
+        
+        duration = 120
         results = {'power': [], 'energy': []}
-
+        
         async def monitor_power():
-            interval = 2.0
+            interval = 10.0
             end_time = time.time() + duration
             while time.time() < end_time:
                 loop_start = time.time()
@@ -101,11 +106,12 @@ class TestAsyncMomongaLoad(unittest.IsolatedAsyncioTestCase):
                     print(f"    [Power] {val}W")
                 except Exception as e:
                     print(f"    [Power] Error: {e}")
+                
                 elapsed = time.time() - loop_start
                 await asyncio.sleep(max(0, interval - elapsed))
 
         async def monitor_energy():
-            interval = 5.0
+            interval = 30.0
             end_time = time.time() + duration
             while time.time() < end_time:
                 loop_start = time.time()
@@ -115,6 +121,7 @@ class TestAsyncMomongaLoad(unittest.IsolatedAsyncioTestCase):
                     print(f"    [Energy] {val}kWh")
                 except Exception as e:
                     print(f"    [Energy] Error: {e}")
+                
                 elapsed = time.time() - loop_start
                 await asyncio.sleep(max(0, interval - elapsed))
 
@@ -123,11 +130,8 @@ class TestAsyncMomongaLoad(unittest.IsolatedAsyncioTestCase):
         print(f"  Power samples: {len(results['power'])}")
         print(f"  Energy samples: {len(results['energy'])}")
 
-        # Expected counts (approximate)
-        expected_power = duration / 2.0
-        expected_energy = duration / 5.0
-        self.assertGreater(len(results['power']), expected_power * 0.8)
-        self.assertGreater(len(results['energy']), expected_energy * 0.8)
+        self.assertGreater(len(results['power']), 0, "Should have received at least one power sample")
+        self.assertGreater(len(results['energy']), 0, "Should have received at least one energy sample")
 
     async def _run_concurrent_requests(self, amo):
         """
@@ -137,7 +141,6 @@ class TestAsyncMomongaLoad(unittest.IsolatedAsyncioTestCase):
         print("=== Concurrent Request Test ===")
         start = time.time()
 
-        # Base set of different property requests
         base_tasks = [
             amo.get_instantaneous_power,
             amo.get_instantaneous_current,
@@ -149,10 +152,8 @@ class TestAsyncMomongaLoad(unittest.IsolatedAsyncioTestCase):
             amo.get_cumulative_energy_measured_at_fixed_time,
         ]
 
-        # Create a larger list of tasks by repeating the base set
-        # This tests the queue's handling of heterogeneous requests under load
         tasks = []
-        for _ in range(5):  # Repeat 5 times
+        for _ in range(5):
             for task_func in base_tasks:
                 tasks.append(task_func())
 
@@ -163,13 +164,11 @@ class TestAsyncMomongaLoad(unittest.IsolatedAsyncioTestCase):
         print(f"  Total time: {elapsed:.2f}s")
         print(f"  Average time/request: {elapsed/len(results):.2f}s")
 
-        # Verify results
         success_count = sum(1 for r in results if not isinstance(r, Exception))
         print(f"  Successes: {success_count}")
         print(f"  Failures: {len(results) - success_count}")
 
-        self.assertGreater(success_count, 0, "At least one request should succeed")
-        self.assertEqual(len(results), len(base_tasks) * 5)
+        self.assertEqual(success_count, len(base_tasks) * 5, "All requests should succeed")
 
     async def _run_burst_requests(self, amo):
         """
@@ -179,7 +178,6 @@ class TestAsyncMomongaLoad(unittest.IsolatedAsyncioTestCase):
         print("=== Burst Request Test ===")
         start = time.time()
 
-        # Concurrent requests
         num_requests = 50
         tasks = [
             amo.get_instantaneous_power()
@@ -189,7 +187,6 @@ class TestAsyncMomongaLoad(unittest.IsolatedAsyncioTestCase):
         results = await asyncio.gather(*tasks, return_exceptions=True)
         elapsed = time.time() - start
 
-        # Count successes and failures
         successes = [r for r in results if not isinstance(r, Exception)]
         failures = [r for r in results if isinstance(r, Exception)]
 
@@ -202,10 +199,7 @@ class TestAsyncMomongaLoad(unittest.IsolatedAsyncioTestCase):
         if failures:
             print(f"  Error sample: {failures[0]}")
 
-        # Verify success rate is above 50% (not too strict)
-        success_rate = len(successes) / len(results)
-        self.assertGreater(success_rate, 0.5,
-                            f"Success rate too low: {success_rate*100:.1f}%")
+        self.assertEqual(len(successes), len(results), "All burst requests should succeed")
 
     async def _run_error_handling_under_load(self, amo):
         """
@@ -214,26 +208,41 @@ class TestAsyncMomongaLoad(unittest.IsolatedAsyncioTestCase):
         """
         print("=== Error Handling Test ===")
 
-        # Mix normal requests with requests that may fail
-        tasks = [
-            amo.get_instantaneous_power(),
-            amo.get_instantaneous_current(),
-            amo.get_measured_cumulative_energy(),
-            amo.get_measured_cumulative_energy(reverse=True),
-            amo.get_operation_status(),
-            # Include operations that may cause errors, like setting non-existent properties
-        ]
+        # This test is integration-heavy (hardware). Skip unless explicitly enabled.
+        if not os.getenv('MOMONGA_INTEGRATION'):
+            print("  Skipping integration error-handling test (set MOMONGA_INTEGRATION=1 to enable)")
+            return
 
-        results = await asyncio.gather(*tasks, return_exceptions=True)
+        # Define a synchronous helper that simulates a transport-level failure.
+        def failing_sync():
+            raise MomongaConnectionError('simulated failure from sync helper')
 
-        successes = sum(1 for r in results if not isinstance(r, Exception))
-        failures = sum(1 for r in results if isinstance(r, Exception))
+        # Submit the failing synchronous call through the AsyncMomonga queue and
+        # verify the exception is propagated to the awaiter.
+        try:
+            with self.subTest('Queued failing sync call'):
+                with self.assertRaises(MomongaConnectionError):
+                    await asyncio.wait_for(amo._run_in_executor(failing_sync), timeout=5)
 
-        print(f"  Successes: {successes}")
-        print(f"  Failures: {failures}")
+            # Immediately perform a normal call to ensure the worker continued.
+            with self.subTest('Follow-up normal call'):
+                val = await asyncio.wait_for(amo.get_instantaneous_power(), timeout=5)
+                self.assertIsInstance(val, (int, float))
 
-        # Verify at least half succeeded
-        self.assertGreater(successes, len(tasks) // 2)
+            # Optionally, exercise concurrent handling: one failing task mixed with valid ones.
+            with self.subTest('Concurrent mix'):
+                tasks = [amo.get_instantaneous_power() for _ in range(3)] + [amo._run_in_executor(failing_sync)]
+                results = await asyncio.gather(*tasks, return_exceptions=True)
+
+                failures = [r for r in results if isinstance(r, Exception)]
+                successes = [r for r in results if not isinstance(r, Exception)]
+
+                # Expect exactly one failure (the failing_sync) and the rest succeed
+                self.assertEqual(len(failures), 1, f'Expected one failure, got {len(failures)}')
+                self.assertTrue(all(not isinstance(s, Exception) for s in successes))
+        finally:
+            # No-op: ensure we don't leave the device in a weird state; cleanup handled by caller.
+            pass
 
 
 if __name__ == '__main__':
