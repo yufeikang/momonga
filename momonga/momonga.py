@@ -518,7 +518,7 @@ class Momonga:
                  reset_dev: bool = True,
                  ) -> None:
         self.xmit_retries: int = 12
-        self.recv_timeout: int | float = 60
+        self.recv_timeout: int | float = 12
         self.internal_xmit_interval: int | float = 5
         self.transaction_id: int = 0
         self.energy_unit: int | float = 1
