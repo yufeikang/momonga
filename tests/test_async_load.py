@@ -239,6 +239,7 @@ class TestAsyncMomongaLoad(unittest.IsolatedAsyncioTestCase):
         print(f"  Acquiring data every {interval_seconds}s for {duration_seconds}s...")
         
         while time.time() - start < duration_seconds:
+            loop_start_time = time.time()
             try:
                 power = await amo.get_instantaneous_power()
                 current_time = time.time() - start
@@ -251,7 +252,10 @@ class TestAsyncMomongaLoad(unittest.IsolatedAsyncioTestCase):
             except Exception as e:
                 print(f"    Error: {e}")
             
-            await asyncio.sleep(interval_seconds)
+            # Adjust sleep time to maintain interval
+            elapsed_in_loop = time.time() - loop_start_time
+            sleep_time = max(0, interval_seconds - elapsed_in_loop)
+            await asyncio.sleep(sleep_time)
         
         print(f"\n  Data points acquired: {len(results)}")
         if results:
