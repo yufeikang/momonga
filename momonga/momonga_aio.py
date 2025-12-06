@@ -5,7 +5,6 @@ from typing import Self, Any
 from concurrent.futures import Executor
 
 from .momonga import Momonga
-from .momonga_device_enum import DeviceType
 from .momonga_exception import MomongaSkScanFailure, MomongaDeviceBusyError, MomongaConnectionError
 
 logger = logging.getLogger(__name__)
