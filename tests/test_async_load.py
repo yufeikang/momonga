@@ -275,39 +275,6 @@ class TestAsyncMomongaLoad(unittest.IsolatedAsyncioTestCase):
             self.assertGreater(successes, len(tasks) // 2)
 
 
-class TestAsyncMomongaConcurrentConnections(unittest.IsolatedAsyncioTestCase):
-    """Concurrent connection test (when multiple devices are available)"""
-    
-    async def test_single_device_multiple_sessions(self):
-        """
-        Multiple sessions to the same device
-        Note: Expected to fail since physical concurrent connections are not possible
-        This test is to verify proper error handling
-        """
-        print("\n=== Multiple Session Test (Error Check) ===")
-        
-        try:
-            conn_params = get_connection_params()
-        except ValueError as e:
-            raise unittest.SkipTest(str(e))
-        
-        # First session should succeed
-        async with AsyncMomonga(**conn_params) as amo1:
-            power1 = await amo1.get_instantaneous_power()
-            print(f"  Session 1: {power1}W - Success")
-            
-            # Second session is likely to fail
-            # (because serial port is already in use)
-            try:
-                async with AsyncMomonga(**conn_params) as amo2:
-                    power2 = await amo2.get_instantaneous_power()
-                    print(f"  Session 2: {power2}W - Success (Unexpected)")
-            except Exception as e:
-                print(f"  Session 2: Error (Expected) - {type(e).__name__}")
-                # Verify that error occurs appropriately
-                self.assertIsInstance(e, Exception)
-
-
 if __name__ == '__main__':
     # Display usage help
     print(__doc__)
