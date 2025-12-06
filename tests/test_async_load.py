@@ -21,16 +21,16 @@ from typing import List, Dict, Any
 from momonga import AsyncMomonga
 import momonga
 
-# Configure logging to display debug information
+# Configure logging to display warnings and errors
 log_fmt = logging.Formatter('%(asctime)s | %(levelname)s | %(name)s - %(message)s')
 log_hnd = logging.StreamHandler()
 log_hnd.setFormatter(log_fmt)
 momonga.logger.addHandler(log_hnd)
-momonga.logger.setLevel(logging.DEBUG)
+momonga.logger.setLevel(logging.WARNING)
 momonga.session_manager_logger.addHandler(log_hnd)
-momonga.session_manager_logger.setLevel(logging.DEBUG)
+momonga.session_manager_logger.setLevel(logging.WARNING)
 momonga.sk_wrapper_logger.addHandler(log_hnd)
-momonga.sk_wrapper_logger.setLevel(logging.DEBUG)
+momonga.sk_wrapper_logger.setLevel(logging.WARNING)
 
 
 def get_connection_params() -> Dict[str, Any]:
