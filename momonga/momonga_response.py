@@ -7,9 +7,9 @@ logger = logging.getLogger(__name__)
 
 
 class MomongaSkResponseBase:
-    def __init__(self, res, device_type: DeviceType):
+class MomongaSkResponseBase:
+    def __init__(self, res):
         self.raw_response = res
-        self.device_type = device_type
         self.decode()
 
     def decode(self):
@@ -20,6 +20,12 @@ class MomongaSkResponseBase:
             if key in elm:
                 return elm
         raise MomongaKeyError(key)
+
+
+class MomongaSkDeviceDependentResponse(MomongaSkResponseBase):
+    def __init__(self, res, device_type: DeviceType):
+        self.device_type = device_type
+        super().__init__(res)
 
 
 class SkVerResponse(MomongaSkResponseBase):
@@ -44,7 +50,7 @@ class SkInfoResponse(MomongaSkResponseBase):
         self.side = int(res_list[5], 16)
 
 
-class SkScanResponse(MomongaSkResponseBase):
+class SkScanResponse(MomongaSkDeviceDependentResponse):
     def decode(self):
         self.channel = int(self.extract('Channel:').split(':')[-1], 16)
         self.channel_page = int(self.extract('Channel Page:').split(':')[-1], 16)
@@ -68,7 +74,7 @@ class SkLl64Response(MomongaSkResponseBase):
         self.ip6_addr = self.extract('FE80:')
 
 
-class SkSendToResponse(MomongaSkResponseBase):
+class SkSendToResponse(MomongaSkDeviceDependentResponse):
     def decode(self):
         self.res_list = self.extract('EVENT 21').split()
         self.event_num = int(self.res_list[1], 16)
@@ -86,7 +92,7 @@ class SkSendToResponse(MomongaSkResponseBase):
                 self.param = int(self.res_list[4], 16)
 
 
-class SkEventRxUdp(MomongaSkResponseBase):
+class SkEventRxUdp(MomongaSkDeviceDependentResponse):
     def decode(self):
         self.res_list = self.extract('ERXUDP').split()
         self.src_addr = self.res_list[1]

@@ -228,18 +228,18 @@ class MomongaSkWrapper:
 
     def skver(self) -> SkVerResponse:
         res = self.exec_command(['SKVER'])
-        return SkVerResponse(res, self.device_type)
+        return SkVerResponse(res)
 
     def skappver(self) -> SkAppVerResponse:
         res = self.exec_command(['SKAPPVER'])
-        return SkAppVerResponse(res, self.device_type)
+        return SkAppVerResponse(res)
 
     def skreset(self) -> None:
         self.exec_command(['SKRESET'])
 
     def skinfo(self) -> SkInfoResponse:
         res = self.exec_command(['SKINFO'])
-        return SkInfoResponse(res, self.device_type)
+        return SkInfoResponse(res)
 
     def sksreg(self,
                reg: str,
@@ -289,7 +289,7 @@ class MomongaSkWrapper:
                mac_addr: bytes,
                ) -> SkLl64Response:
         res = self.exec_command(['SKLL64', mac_addr.hex().upper()], 'FE80:')
-        return SkLl64Response(res, self.device_type)
+        return SkLl64Response(res)
 
     def skjoin(self,
                ip6_addr: str,
