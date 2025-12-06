@@ -22,14 +22,14 @@ class AsyncMomonga:
                  ) -> None:
         """
         Async wrapper for Momonga client.
-        
+
         Args:
             rbid: Route-B ID
             pwd: Route-B Password
             dev: Device path (e.g. '/dev/ttyUSB0' or 'COM3')
             baudrate: Baudrate (default: 115200)
             reset_dev: Whether to reset the device on open (default: True)
-            executor: Custom executor for running blocking operations. 
+            executor: Custom executor for running blocking operations.
                       If None, the default loop executor is used.
         """
         self._sync_client = Momonga(rbid, pwd, dev, baudrate, reset_dev)
@@ -115,7 +115,7 @@ class AsyncMomonga:
                 if i < retry_count:
                     logger.warning(f"Scan failed, retrying ({i+1}/{retry_count})...")
                     await asyncio.sleep(retry_interval)
-        
+
         if last_error:
             raise last_error
         return self

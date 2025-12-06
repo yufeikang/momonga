@@ -39,20 +39,18 @@ def get_connection_params() -> Dict[str, Any]:
     pwd = os.getenv('MOMONGA_ROUTEB_PASSWORD')
     dev = os.getenv('MOMONGA_DEV_PATH')
     baudrate = int(os.getenv('MOMONGA_DEV_BAUDRATE', '115200'))
-    
+
     if not all([rbid, pwd, dev]):
         raise ValueError(
             "Please set environment variables: MOMONGA_ROUTEB_ID, MOMONGA_ROUTEB_PASSWORD, MOMONGA_DEV_PATH"
         )
-    
+
     return {
         'rbid': rbid,
         'pwd': pwd,
         'dev': dev,
         'baudrate': baudrate,
     }
-
-
 class TestAsyncMomongaLoad(unittest.IsolatedAsyncioTestCase):
     """Async load testing with real hardware"""
     
@@ -70,23 +68,23 @@ class TestAsyncMomongaLoad(unittest.IsolatedAsyncioTestCase):
         This reuses the connection for all tests, simulating a long-running application
         """
         print("\n=== Starting Full Load Scenario ===")
-        
+
         async with AsyncMomonga(**self.conn_params) as amo:
             with self.subTest("Sequential Requests"):
                 await self._run_sequential_requests(amo)
-            
+
             with self.subTest("Concurrent Requests (Same Property)"):
                 await self._run_concurrent_requests_same_property(amo)
-                
+
             with self.subTest("Concurrent Requests (Different Properties)"):
                 await self._run_concurrent_requests_different_properties(amo)
-                
+
             with self.subTest("Burst Requests"):
                 await self._run_burst_requests(amo)
-                
+
             with self.subTest("Error Handling"):
                 await self._run_error_handling_under_load(amo)
-                
+
             with self.subTest("Long Running Monitoring"):
                 await self._run_long_running_monitoring(amo)
 
