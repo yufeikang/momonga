@@ -11,6 +11,7 @@ MomongaはBルートサービスを利用してスマートメーターと通信
 # Tested Devices
 - ラトックシステム RS-WSUHA-P
 - テセラ・テクノロジー RL7023 Stick-D/DSS
+- テセラ・テクノロジー RL7023 Stick-D/IPS
 
 # Note
 - Momongaは`WOPT 01\r`コマンドを実行して、Wi-SUNモジュールがUDPパケットのペイロードをASCIIフォーマットで出力するように設定します。注意: WOPTコマンドは実行回数に制限があるので初回のみ実行し、その設定はWi-SUNモジュールに保存されます。
@@ -98,6 +99,9 @@ PANAセッションを確立できなかったときに送出される。Bルー
 
 ## momonga.MomongaNeedToReopen
 スマートメーターに対してコマンドを送信できなかったなどの理由で、スマートメーターに再接続が必要なときに送出される。
+
+## momonga.MomongaResponseNotPossible
+スマートメーターがリクエストしたEPC (ECHONET Property Code) をサポートしていなかったとき送出される。スマートメーターに対して複数のEPCを同時に発行したとき、ひとつでもサポートされていないEPCがあるとこのエクセプションが送出される。スマートメーターがサポートしているEPCはmomonga.set_properties_to_get_values()、momonga.get_properties_to_get_values()で取得できる。
 
 ## 例外を捕捉する例
 ```python3
@@ -228,7 +232,7 @@ e.g.
  <EchonetPropertyCode.fault_status: 136>}
 ```
 
-## momonga.get_properties_to_set()
+## momonga.get_properties_to_set_values()
 ### Arguments
 - Void
 ### Return Value
@@ -239,7 +243,7 @@ e.g.
  <EchonetPropertyCode.time_for_historical_data_2: 237>}
 ```
 
-## momonga.get_properties_to_get()
+## momonga.get_properties_to_get_values()
 ### Arguments
 - Void
 ### Return Value
