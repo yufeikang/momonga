@@ -3,10 +3,10 @@ Async load testing with real hardware
 
 This test requires connection to an actual device.
 Configure connection settings via environment variables:
-- MOMONGA_RBID: Route-B ID
-- MOMONGA_PWD: Route-B Password
-- MOMONGA_DEV: Device path (e.g., COM3, /dev/ttyUSB0)
-- MOMONGA_BAUDRATE: Baudrate (default: 115200)
+- MOMONGA_ROUTEB_ID: Route-B ID
+- MOMONGA_ROUTEB_PASSWORD: Route-B Password
+- MOMONGA_DEV_PATH: Device path (e.g., COM3, /dev/ttyUSB0)
+- MOMONGA_DEV_BAUDRATE: Baudrate (default: 115200)
 
 Example usage:
     python -m pytest tests/test_async_load.py -v -s
@@ -22,14 +22,14 @@ from momonga import AsyncMomonga
 
 def get_connection_params() -> Dict[str, Any]:
     """Get connection parameters from environment variables"""
-    rbid = os.getenv('MOMONGA_RBID')
-    pwd = os.getenv('MOMONGA_PWD')
-    dev = os.getenv('MOMONGA_DEV')
-    baudrate = int(os.getenv('MOMONGA_BAUDRATE', '115200'))
+    rbid = os.getenv('MOMONGA_ROUTEB_ID')
+    pwd = os.getenv('MOMONGA_ROUTEB_PASSWORD')
+    dev = os.getenv('MOMONGA_DEV_PATH')
+    baudrate = int(os.getenv('MOMONGA_DEV_BAUDRATE', '115200'))
     
     if not all([rbid, pwd, dev]):
         raise ValueError(
-            "Please set environment variables: MOMONGA_RBID, MOMONGA_PWD, MOMONGA_DEV"
+            "Please set environment variables: MOMONGA_ROUTEB_ID, MOMONGA_ROUTEB_PASSWORD, MOMONGA_DEV_PATH"
         )
     
     return {

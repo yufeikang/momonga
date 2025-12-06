@@ -6,10 +6,10 @@
 #   ./run_async_load_test.sh
 #
 # Make sure to set environment variables before running:
-#   export MOMONGA_RBID="your_route_b_id"
-#   export MOMONGA_PWD="your_password"
-#   export MOMONGA_DEV="COM3"  # or /dev/ttyUSB0
-#   export MOMONGA_BAUDRATE="115200"  # optional, defaults to 115200
+#   export MOMONGA_ROUTEB_ID="your_route_b_id"
+#   export MOMONGA_ROUTEB_PASSWORD="your_password"
+#   export MOMONGA_DEV_PATH="COM3"  # or /dev/ttyUSB0
+#   export MOMONGA_DEV_BAUDRATE="115200"  # optional, defaults to 115200
 
 set -e  # Exit on error
 
@@ -22,25 +22,25 @@ NC='\033[0m' # No Color
 echo -e "${GREEN}=== Momonga Async Load Test Runner ===${NC}\n"
 
 # Check required environment variables
-if [ -z "$MOMONGA_RBID" ] || [ -z "$MOMONGA_PWD" ] || [ -z "$MOMONGA_DEV" ]; then
+if [ -z "$MOMONGA_ROUTEB_ID" ] || [ -z "$MOMONGA_ROUTEB_PASSWORD" ] || [ -z "$MOMONGA_DEV_PATH" ]; then
     echo -e "${RED}Error: Missing required environment variables${NC}"
     echo "Please set:"
-    echo "  MOMONGA_RBID"
-    echo "  MOMONGA_PWD"
-    echo "  MOMONGA_DEV"
+    echo "  MOMONGA_ROUTEB_ID"
+    echo "  MOMONGA_ROUTEB_PASSWORD"
+    echo "  MOMONGA_DEV_PATH"
     echo ""
     echo "Example:"
-    echo "  export MOMONGA_RBID=\"your_route_b_id\""
-    echo "  export MOMONGA_PWD=\"your_password\""
-    echo "  export MOMONGA_DEV=\"COM3\""
+    echo "  export MOMONGA_ROUTEB_ID=\"your_route_b_id\""
+    echo "  export MOMONGA_ROUTEB_PASSWORD=\"your_password\""
+    echo "  export MOMONGA_DEV_PATH=\"COM3\""
     exit 1
 fi
 
 # Display configuration
 echo -e "${YELLOW}Configuration:${NC}"
-echo "  RBID: ${MOMONGA_RBID}"
-echo "  Device: ${MOMONGA_DEV}"
-echo "  Baudrate: ${MOMONGA_BAUDRATE:-115200}"
+echo "  RBID: ${MOMONGA_ROUTEB_ID}"
+echo "  Device: ${MOMONGA_DEV_PATH}"
+echo "  Baudrate: ${MOMONGA_DEV_BAUDRATE:-115200}"
 echo ""
 
 # Run the tests
