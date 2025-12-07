@@ -80,8 +80,19 @@ class TestAsyncMomongaLoad(unittest.IsolatedAsyncioTestCase):
 
         # Run the error-handling check in a fresh session to isolate from prior load.
         with self.subTest("Error Handling"):
-            async with AsyncMomonga(**self.conn_params) as amo_err:
-                await self._run_error_handling_under_load(amo_err)
+            # Temporarily enable DEBUG logs for SK wrapper and session manager
+            print("  [Debug] Enabling DEBUG logs for SK wrapper and session manager")
+            prev_levels = (momonga.logger.level, momonga.session_manager_logger.level, momonga.sk_wrapper_logger.level)
+            momonga.logger.setLevel(logging.DEBUG)
+            momonga.session_manager_logger.setLevel(logging.DEBUG)
+            momonga.sk_wrapper_logger.setLevel(logging.DEBUG)
+            try:
+                async with AsyncMomonga(**self.conn_params) as amo_err:
+                    await self._run_error_handling_under_load(amo_err)
+            finally:
+                momonga.logger.setLevel(prev_levels[0])
+                momonga.session_manager_logger.setLevel(prev_levels[1])
+                momonga.sk_wrapper_logger.setLevel(prev_levels[2])
 
         # Run monitoring loops in their own session (long-running).
 #        async with AsyncMomonga(**self.conn_params) as amo:
