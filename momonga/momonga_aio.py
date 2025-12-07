@@ -56,7 +56,7 @@ class AsyncMomonga:
                 raise MomongaNeedToReopen("Client is closing; cannot accept new tasks")
 
             # Ensure worker is running
-            if self._worker is None:
+            if self._worker is None or self._worker.done():
                 self._start_worker()
 
         fut: asyncio.Future = loop.create_future()
@@ -64,7 +64,7 @@ class AsyncMomonga:
         return await fut
 
     def _start_worker(self) -> None:
-        if self._worker is None:
+        if self._worker is None or self._worker.done():
             loop = asyncio.get_running_loop()
             self._worker = loop.create_task(self._worker_loop())
 
@@ -103,8 +103,8 @@ class AsyncMomonga:
                         fut.set_result(res)
                 finally:
                     self._queue.task_done()
-        except Exception as e:
-            print(f"DEBUG: Worker loop CRASHED: {e}")
+        except BaseException as e:
+            print(f"DEBUG: Worker loop CRASHED or CANCELLED: {type(e).__name__}: {e}")
             raise
         finally:
             print("DEBUG: Worker loop exiting cleanup")
