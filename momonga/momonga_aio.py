@@ -105,8 +105,13 @@ class AsyncMomonga:
                 finally:
                     self._queue.task_done()
         except BaseException as e:
-            print(f"DEBUG: Worker loop CRASHED or CANCELLED: {type(e).__name__}: {e}")
-            traceback.print_exc()
+            # GeneratorExit is raised when the coroutine is closed.
+            # We should log it but allow the worker to exit cleanly.
+            if isinstance(e, GeneratorExit):
+                print("DEBUG: Worker received GeneratorExit, stopping")
+            else:
+                print(f"DEBUG: Worker loop CRASHED or CANCELLED: {type(e).__name__}: {e}")
+                traceback.print_exc()
             raise
         finally:
             print("DEBUG: Worker loop exiting cleanup")
@@ -120,6 +125,10 @@ class AsyncMomonga:
                 if not fut.done():
                     fut.set_exception(MomongaNeedToReopen("Worker stopped unexpectedly"))
                 self._queue.task_done()
+            
+            # Detach self from the instance so a new worker can be started
+            if self._worker == asyncio.current_task():
+                self._worker = None
 
     async def open(self, retry_count: int = 3, retry_interval: float = 2.0) -> "AsyncMomonga":
         if self._dev in AsyncMomonga._active_devices:
