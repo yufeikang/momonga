@@ -1,6 +1,7 @@
 import asyncio
 import functools
 import logging
+import traceback
 from typing import Any
 from concurrent.futures import Executor
 
@@ -105,6 +106,7 @@ class AsyncMomonga:
                     self._queue.task_done()
         except BaseException as e:
             print(f"DEBUG: Worker loop CRASHED or CANCELLED: {type(e).__name__}: {e}")
+            traceback.print_exc()
             raise
         finally:
             print("DEBUG: Worker loop exiting cleanup")
