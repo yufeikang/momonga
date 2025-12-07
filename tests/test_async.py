@@ -219,12 +219,8 @@ class TestAsyncMomonga(unittest.IsolatedAsyncioTestCase):
         # 2. Verify worker recovery
         print("  [Step 2] Verifying worker recovery...")
 
-        # DEBUG: Wait a bit to see if worker is stuck
-        # await asyncio.sleep(1.0)
-
         try:
             # Use a simple read command
-            # Note: We use get_instantaneous_power as a lightweight check
             res = await amo.get_instantaneous_power()
             print(f"  [Pass] Worker recovered, result: {res}")
         except Exception as e:

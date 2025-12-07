@@ -1,7 +1,6 @@
 import asyncio
 import functools
 import logging
-import traceback
 from typing import Any
 from concurrent.futures import Executor
 
@@ -71,7 +70,7 @@ class AsyncMomonga:
 
     async def _worker_loop(self) -> None:
         loop = asyncio.get_running_loop()
-        my_task = asyncio.current_task()
+        current_task = asyncio.current_task()
         try:
             while True:
                 item = await self._queue.get()
@@ -97,15 +96,6 @@ class AsyncMomonga:
                         fut.set_result(res)
                 finally:
                     self._queue.task_done()
-        except BaseException as e:
-            # GeneratorExit is raised when the coroutine is closed.
-            # We should log it but allow the worker to exit cleanly.
-            if isinstance(e, GeneratorExit):
-                pass
-            else:
-                logger.error(f"Worker loop CRASHED or CANCELLED: {type(e).__name__}: {e}")
-                traceback.print_exc()
-            raise
         finally:
             try:
                 # Drain the queue and cancel pending futures if the worker stops unexpectedly
@@ -121,11 +111,8 @@ class AsyncMomonga:
             except Exception as e:
                 logger.error(f"Error during worker cleanup: {e}")
             finally:
-                # Detach self from the instance so a new worker can be started
-                # Always reset if we are the current worker, or if the worker is already done
-                
-                # If we are the worker task (my_task), we should reset self._worker if it points to us.
-                if self._worker == my_task:
+                # Reset self._worker if it points to this task
+                if self._worker == current_task:
                     self._worker = None
                 elif self._worker and self._worker.done():
                     self._worker = None
