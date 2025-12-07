@@ -116,23 +116,27 @@ class AsyncMomonga:
             raise
         finally:
             print("DEBUG: Worker loop exiting cleanup")
-            # Drain the queue and cancel pending futures if the worker stops unexpectedly
-            while not self._queue.empty():
-                item = self._queue.get_nowait()
-                if item is None:
+            try:
+                # Drain the queue and cancel pending futures if the worker stops unexpectedly
+                while not self._queue.empty():
+                    item = self._queue.get_nowait()
+                    if item is None:
+                        self._queue.task_done()
+                        continue
+                    _, _, _, fut = item
+                    if not fut.done():
+                        fut.set_exception(MomongaNeedToReopen("Worker stopped unexpectedly"))
                     self._queue.task_done()
-                    continue
-                _, _, _, fut = item
-                if not fut.done():
-                    fut.set_exception(MomongaNeedToReopen("Worker stopped unexpectedly"))
-                self._queue.task_done()
-            
-            # Detach self from the instance so a new worker can be started
-            # Always reset if we are the current worker, or if the worker is already done
-            current = asyncio.current_task()
-            if self._worker == current or (self._worker and self._worker.done()):
-                print("DEBUG: Resetting self._worker to None")
-                self._worker = None
+            except Exception as e:
+                print(f"DEBUG: Error during worker cleanup: {e}")
+            finally:
+                # Detach self from the instance so a new worker can be started
+                # Always reset if we are the current worker, or if the worker is already done
+                current = asyncio.current_task()
+                print(f"DEBUG: Checking worker reset. self._worker={self._worker}, current={current}")
+                if self._worker == current or (self._worker and self._worker.done()):
+                    print("DEBUG: Resetting self._worker to None")
+                    self._worker = None
 
     async def open(self, retry_count: int = 3, retry_interval: float = 2.0) -> "AsyncMomonga":
         if self._dev in AsyncMomonga._active_devices:
