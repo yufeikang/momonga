@@ -242,6 +242,46 @@ class TestAsyncMomongaLoad(unittest.IsolatedAsyncioTestCase):
                 print("  [Follow-up] before call: sync_client.is_open =", getattr(amo._sync_client, 'is_open', None))
                 print(f"  [Follow-up] queue size={qsize}, worker_done={worker_state}")
 
+                # Extra diagnostics from the session manager and SK wrapper
+                try:
+                    sm = amo._sync_client.session_manager
+                    print("  [Follow-up] session_established =", getattr(sm, 'session_established', None))
+                    try:
+                        r_alive = sm.receiver_th.is_alive() if sm.receiver_th is not None else None
+                    except Exception:
+                        r_alive = 'N/A'
+                    print("  [Follow-up] receiver_th_alive =", r_alive)
+                    print("  [Follow-up] receiver_exception =", getattr(sm, 'receiver_exception', None))
+                    try:
+                        recv_qsize = sm.recv_q.qsize()
+                    except Exception:
+                        recv_qsize = 'N/A'
+                    print("  [Follow-up] recv_qsize =", recv_qsize)
+                    try:
+                        xmit_locked = sm.xmit_lock.locked()
+                    except Exception:
+                        xmit_locked = 'N/A'
+                    print("  [Follow-up] xmit_lock_locked =", xmit_locked)
+
+                    # SK wrapper diagnostics
+                    try:
+                        skw = sm.skw
+                        pub_alive = skw.publisher_th.is_alive() if getattr(skw, 'publisher_th', None) is not None else None
+                        print("  [Follow-up] skw.publisher_th_alive =", pub_alive)
+                        ser = getattr(skw, 'ser', None)
+                        if ser is None:
+                            print("  [Follow-up] serial = None")
+                        else:
+                            try:
+                                ser_open = not getattr(ser, 'closed', False)
+                            except Exception:
+                                ser_open = 'N/A'
+                            print("  [Follow-up] serial open =", ser_open)
+                    except Exception as e:
+                        print("  [Follow-up] skw diagnostics error:", e)
+                except Exception as e:
+                    print("  [Follow-up] session manager diagnostics error:", e)
+
                 # Allow longer time for real hardware and retry a couple of times
                 max_retries = 2
                 last_exc = None
