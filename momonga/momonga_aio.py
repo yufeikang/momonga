@@ -30,6 +30,18 @@ class AsyncMomonga:
                  reset_dev: bool = True,
                  executor: Executor | None = None,
                  ) -> None:
+        """
+        Async wrapper for Momonga client.
+
+        Args:
+            rbid: Route-B ID
+            pwd: Route-B Password
+            dev: Device path (e.g. '/dev/ttyUSB0' or 'COM3')
+            baudrate: Baudrate (default: 115200)
+            reset_dev: Whether to reset the device on open (default: True)
+            executor: Custom executor for running blocking operations.
+                      If None, the default loop executor is used.
+        """
         self._dev = dev
         self._sync_client = Momonga(rbid, pwd, dev, baudrate, reset_dev)
         self._executor = executor
