@@ -67,6 +67,7 @@ class AsyncMomonga:
         if self._worker is None:
             loop = asyncio.get_running_loop()
             self._worker = loop.create_task(self._worker_loop())
+            logger.debug("AsyncMomonga: started worker task %s", self._worker)
 
     async def _worker_loop(self) -> None:
         loop = asyncio.get_running_loop()
@@ -95,7 +96,12 @@ class AsyncMomonga:
                         fut.set_result(res)
                 finally:
                     self._queue.task_done()
+        except Exception:
+            logger.exception("AsyncMomonga._worker_loop encountered an unexpected exception")
+            raise
         finally:
+            pending = self._queue.qsize()
+            logger.debug("AsyncMomonga._worker_loop exiting, draining %d pending items", pending)
             while not self._queue.empty():
                 item = self._queue.get_nowait()
                 if item is None:
@@ -103,8 +109,12 @@ class AsyncMomonga:
                     continue
                 _, _, _, fut = item
                 if not fut.done():
-                    fut.set_exception(MomongaConnectionError("Worker stopped unexpectedly"))
+                    try:
+                        fut.set_exception(MomongaConnectionError("Worker stopped unexpectedly"))
+                    except Exception:
+                        logger.exception("Failed to set exception on pending future during worker drain")
                 self._queue.task_done()
+            logger.debug("AsyncMomonga._worker_loop drained queue and is exiting")
 
     async def open(self, retry_count: int = 3, retry_interval: float = 2.0) -> Self:
         if self._dev in AsyncMomonga._active_devices:
