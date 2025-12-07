@@ -221,25 +221,39 @@ class TestAsyncMomongaLoad(unittest.IsolatedAsyncioTestCase):
 
             # Immediately perform a normal call to ensure the worker continued.
             with self.subTest('Follow-up normal call'):
+                # Diagnostic: print queue/worker state before calling
                 try:
-                    print("  [Follow-up] before call: sync_client.is_open =", getattr(amo._sync_client, 'is_open', None))
-                    val = await asyncio.wait_for(amo.get_instantaneous_power(), timeout=5)
-                except Exception as e:
-                    print(f"  [Follow-up] call failed: {type(e).__name__}: {e!r}")
-                    print("  [Follow-up] sync_client.is_open after failure =", getattr(amo._sync_client, 'is_open', None))
-                    # short delay and one retry to see if this is a transient condition
-                    await asyncio.sleep(0.2)
-                    print("  [Follow-up] retrying once...")
+                    qsize = amo._queue.qsize()
+                except Exception:
+                    qsize = 'N/A'
+                worker_state = None
+                try:
+                    worker_state = getattr(amo._worker, 'done', lambda: 'N/A')()
+                except Exception:
+                    worker_state = 'N/A'
+
+                print("  [Follow-up] before call: sync_client.is_open =", getattr(amo._sync_client, 'is_open', None))
+                print(f"  [Follow-up] queue size={qsize}, worker_done={worker_state}")
+
+                # Allow longer time for real hardware and retry a couple of times
+                max_retries = 2
+                last_exc = None
+                for attempt in range(1, max_retries + 1):
                     try:
-                        val = await asyncio.wait_for(amo.get_instantaneous_power(), timeout=5)
-                        print("  [Follow-up] retry succeeded:", val)
+                        val = await asyncio.wait_for(amo.get_instantaneous_power(), timeout=15)
+                        print(f"  [Follow-up] attempt {attempt} succeeded: {val}")
                         self.assertIsInstance(val, (int, float))
-                    except Exception as e2:
-                        print(f"  [Follow-up] retry failed: {type(e2).__name__}: {e2!r}")
-                        self.fail(f"Follow-up call failed after retry: {e2!r}")
-                else:
-                    print("  [Follow-up] call succeeded:", val)
-                    self.assertIsInstance(val, (int, float))
+                        last_exc = None
+                        break
+                    except Exception as e:
+                        last_exc = e
+                        print(f"  [Follow-up] attempt {attempt} failed: {type(e).__name__}: {e!r}")
+                        print("  [Follow-up] sync_client.is_open after failure =", getattr(amo._sync_client, 'is_open', None))
+                        if attempt < max_retries:
+                            await asyncio.sleep(0.5)
+                            print("  [Follow-up] retrying...")
+                if last_exc is not None:
+                    self.fail(f"Follow-up call failed after {max_retries} attempts: {last_exc!r}")
 
             # Optionally, exercise concurrent handling: one failing task mixed with valid ones.
             with self.subTest('Concurrent mix'):
