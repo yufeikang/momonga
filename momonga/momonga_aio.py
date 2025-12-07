@@ -58,6 +58,7 @@ class AsyncMomonga:
 
             # Ensure worker is running
             if self._worker is None or self._worker.done():
+                print("DEBUG: Worker is missing or done, restarting...")
                 self._start_worker()
 
         fut: asyncio.Future = loop.create_future()
@@ -127,7 +128,10 @@ class AsyncMomonga:
                 self._queue.task_done()
             
             # Detach self from the instance so a new worker can be started
-            if self._worker == asyncio.current_task():
+            # Always reset if we are the current worker, or if the worker is already done
+            current = asyncio.current_task()
+            if self._worker == current or (self._worker and self._worker.done()):
+                print("DEBUG: Resetting self._worker to None")
                 self._worker = None
 
     async def open(self, retry_count: int = 3, retry_interval: float = 2.0) -> "AsyncMomonga":
