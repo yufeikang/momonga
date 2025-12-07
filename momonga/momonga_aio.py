@@ -153,33 +153,31 @@ class AsyncMomonga:
         loop = asyncio.get_running_loop()
 
         async with self._state_lock:
+            if self._closing:
+                return  # Already closing
             self._closing = True
             worker_exists = self._worker is not None
 
-        if not worker_exists:
-            await loop.run_in_executor(self._executor, functools.partial(self._sync_client.close))
+        try:
+            if not worker_exists:
+                await loop.run_in_executor(self._executor, functools.partial(self._sync_client.close))
+                return
+
+            close_fut: asyncio.Future = loop.create_future()
+            await self._queue.put((self._sync_client.close, (), {}, close_fut))
+            await close_fut
+
+            await self._queue.join()
+
+            await self._queue.put(None)
+            if self._worker:
+                await self._worker
+                self._worker = None
+        finally:
             if self._dev in AsyncMomonga._active_devices:
                 AsyncMomonga._active_devices.remove(self._dev)
             async with self._state_lock:
                 self._closing = False
-            return
-
-        close_fut: asyncio.Future = loop.create_future()
-        await self._queue.put((self._sync_client.close, (), {}, close_fut))
-        await close_fut
-
-        if self._dev in AsyncMomonga._active_devices:
-            AsyncMomonga._active_devices.remove(self._dev)
-
-        await self._queue.join()
-
-        await self._queue.put(None)
-        if self._worker:
-            await self._worker
-            self._worker = None
-
-        async with self._state_lock:
-            self._closing = False
 
     # --- Wrapped Methods ---
 
