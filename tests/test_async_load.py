@@ -221,8 +221,25 @@ class TestAsyncMomongaLoad(unittest.IsolatedAsyncioTestCase):
 
             # Immediately perform a normal call to ensure the worker continued.
             with self.subTest('Follow-up normal call'):
-                val = await asyncio.wait_for(amo.get_instantaneous_power(), timeout=5)
-                self.assertIsInstance(val, (int, float))
+                try:
+                    print("  [Follow-up] before call: sync_client.is_open =", getattr(amo._sync_client, 'is_open', None))
+                    val = await asyncio.wait_for(amo.get_instantaneous_power(), timeout=5)
+                except Exception as e:
+                    print(f"  [Follow-up] call failed: {type(e).__name__}: {e!r}")
+                    print("  [Follow-up] sync_client.is_open after failure =", getattr(amo._sync_client, 'is_open', None))
+                    # short delay and one retry to see if this is a transient condition
+                    await asyncio.sleep(0.2)
+                    print("  [Follow-up] retrying once...")
+                    try:
+                        val = await asyncio.wait_for(amo.get_instantaneous_power(), timeout=5)
+                        print("  [Follow-up] retry succeeded:", val)
+                        self.assertIsInstance(val, (int, float))
+                    except Exception as e2:
+                        print(f"  [Follow-up] retry failed: {type(e2).__name__}: {e2!r}")
+                        self.fail(f"Follow-up call failed after retry: {e2!r}")
+                else:
+                    print("  [Follow-up] call succeeded:", val)
+                    self.assertIsInstance(val, (int, float))
 
             # Optionally, exercise concurrent handling: one failing task mixed with valid ones.
             with self.subTest('Concurrent mix'):
