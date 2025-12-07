@@ -5,7 +5,7 @@ import queue
 import inspect
 import logging
 
-from typing import TypedDict, Any, Self
+from typing import TypedDict, Any, Self, Callable
 
 from .momonga_exception import (MomongaResponseNotExpected,
                                 MomongaResponseNotPossible,
@@ -424,7 +424,7 @@ class EchonetDataParser:
                 'number of data points': num_of_data_points}
 
 
-parser_map: dict[EchonetPropertyCode, callable] = {
+parser_map: dict[EchonetPropertyCode, Callable] = {
     EchonetPropertyCode.operation_status: EchonetDataParser.parse_operation_status,
     EchonetPropertyCode.installation_location: EchonetDataParser.parse_installation_location,
     EchonetPropertyCode.standard_version_information: EchonetDataParser.parse_standard_version_information,
@@ -529,12 +529,12 @@ class Momonga:
     def __init_energy_unit(self) -> None:
         logger.debug('Initializing the energy unit and coefficient.')
         self.energy_unit = self.get_unit_for_cumulative_energy()
+        time.sleep(self.internal_xmit_interval)
+        
         try:
             self.energy_coefficient = self.get_coefficient_for_cumulative_energy()
-            time.sleep(self.internal_xmit_interval)
         except MomongaResponseNotPossible:  # due to the property 0xD3 is optional.
             self.energy_coefficient = 1
-        time.sleep(self.internal_xmit_interval)
 
     def __enter__(self) -> Self:
         return self.open()
@@ -544,12 +544,16 @@ class Momonga:
 
     def open(self) -> Self:
         logger.info('Opening Momonga.')
-        self.session_manager.open()
-        time.sleep(self.internal_xmit_interval)
-        self.is_open = True
-        self.__init_energy_unit()
-        logger.info('Momonga is open.')
-        return self
+        try:
+            self.session_manager.open()
+            time.sleep(self.internal_xmit_interval)
+            self.is_open = True
+            self.__init_energy_unit()
+            logger.info('Momonga is open.')
+            return self
+        except Exception:
+            self.is_open = False
+            raise
 
     def close(self) -> None:
         logger.info('Closing Momonga.')
@@ -911,8 +915,7 @@ class Momonga:
         req = EchonetPropertyWithData(EchonetPropertyCode.time_for_historical_data_2, edt)
         self.__request_to_set([req])
 
-    def get_time_for_historical_data_2(self) -> dict[str: datetime.datetime | None,
-                                                     str: int]:
+    def get_time_for_historical_data_2(self) -> dict[str, datetime.datetime | None | int]:
         req = EchonetProperty(EchonetPropertyCode.time_for_historical_data_2)
         res = self.__request_to_get([req])[0]
         return EchonetDataParser.parse_time_for_historical_data_2(res.edt)
