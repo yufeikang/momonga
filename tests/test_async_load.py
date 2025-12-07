@@ -80,19 +80,22 @@ class TestAsyncMomongaLoad(unittest.IsolatedAsyncioTestCase):
 
         # Run the error-handling check in a fresh session to isolate from prior load.
         with self.subTest("Error Handling"):
-            # Temporarily enable DEBUG logs for SK wrapper and session manager
-            print("  [Debug] Enabling DEBUG logs for SK wrapper and session manager")
-            prev_levels = (momonga.logger.level, momonga.session_manager_logger.level, momonga.sk_wrapper_logger.level)
-            momonga.logger.setLevel(logging.DEBUG)
-            momonga.session_manager_logger.setLevel(logging.DEBUG)
-            momonga.sk_wrapper_logger.setLevel(logging.DEBUG)
+            # Optionally enable DEBUG logs for SK wrapper and session manager
+            debug_enabled = os.getenv('MOMONGA_DEBUG') == '1'
+            if debug_enabled:
+                print("  [Debug] Enabling DEBUG logs for SK wrapper and session manager")
+                prev_levels = (momonga.logger.level, momonga.session_manager_logger.level, momonga.sk_wrapper_logger.level)
+                momonga.logger.setLevel(logging.DEBUG)
+                momonga.session_manager_logger.setLevel(logging.DEBUG)
+                momonga.sk_wrapper_logger.setLevel(logging.DEBUG)
             try:
                 async with AsyncMomonga(**self.conn_params) as amo_err:
                     await self._run_error_handling_under_load(amo_err)
             finally:
-                momonga.logger.setLevel(prev_levels[0])
-                momonga.session_manager_logger.setLevel(prev_levels[1])
-                momonga.sk_wrapper_logger.setLevel(prev_levels[2])
+                if debug_enabled:
+                    momonga.logger.setLevel(prev_levels[0])
+                    momonga.session_manager_logger.setLevel(prev_levels[1])
+                    momonga.sk_wrapper_logger.setLevel(prev_levels[2])
 
         # Run monitoring loops in their own session (long-running).
 #        async with AsyncMomonga(**self.conn_params) as amo:
@@ -235,7 +238,7 @@ class TestAsyncMomongaLoad(unittest.IsolatedAsyncioTestCase):
         try:
             with self.subTest('Queued failing sync call'):
                 with self.assertRaises(MomongaConnectionError):
-                    await asyncio.wait_for(amo._run_in_executor(failing_sync), timeout=5)
+                    await asyncio.wait_for(amo.submit_sync_call(failing_sync), timeout=5)
 
             # Immediately perform a normal call to ensure the worker continued.
             with self.subTest('Follow-up normal call'):
@@ -315,7 +318,7 @@ class TestAsyncMomongaLoad(unittest.IsolatedAsyncioTestCase):
 
             # Optionally, exercise concurrent handling: one failing task mixed with valid ones.
             with self.subTest('Concurrent mix'):
-                tasks = [amo.get_instantaneous_power() for _ in range(3)] + [amo._run_in_executor(failing_sync)]
+                tasks = [amo.get_instantaneous_power() for _ in range(3)] + [amo.submit_sync_call(failing_sync)]
                 results = await asyncio.gather(*tasks, return_exceptions=True)
 
                 failures = [r for r in results if isinstance(r, Exception)]
