@@ -70,34 +70,44 @@ class AsyncMomonga:
 
     async def _worker_loop(self) -> None:
         loop = asyncio.get_running_loop()
+        print("DEBUG: Worker loop started")
         try:
             while True:
+                print("DEBUG: Worker waiting for task...")
                 item = await self._queue.get()
                 if item is None:
                     self._queue.task_done()
+                    print("DEBUG: Worker received None, stopping")
                     break
 
                 func, args, kwargs, fut = item
+                func_name = func.__name__ if hasattr(func, '__name__') else str(func)
+                print(f"DEBUG: Worker picked up task: {func_name}")
 
                 # If the future is already done (cancelled or completed),
                 # skip executing the blocking call to avoid wasted work.
                 if fut.done():
+                    print(f"DEBUG: Task {func_name} future already done, skipping")
                     self._queue.task_done()
                     continue
 
                 try:
                     res = await loop.run_in_executor(self._executor, functools.partial(func, *args, **kwargs))
                 except Exception as e:
-                    print(f"DEBUG: Worker caught exception: {e}")
+                    print(f"DEBUG: Worker caught exception executing {func_name}: {e}")
                     if not fut.done():
                         fut.set_exception(e)
                 else:
-                    print("DEBUG: Worker task completed successfully")
+                    print(f"DEBUG: Worker task {func_name} completed successfully")
                     if not fut.done():
                         fut.set_result(res)
                 finally:
                     self._queue.task_done()
+        except Exception as e:
+            print(f"DEBUG: Worker loop CRASHED: {e}")
+            raise
         finally:
+            print("DEBUG: Worker loop exiting cleanup")
             # Drain the queue and cancel pending futures if the worker stops unexpectedly
             while not self._queue.empty():
                 item = self._queue.get_nowait()
