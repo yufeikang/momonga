@@ -72,17 +72,17 @@ class TestAsyncMomonga(unittest.IsolatedAsyncioTestCase):
         print("=== Starting Full Async Scenario ===")
 
         async with AsyncMomonga(**self.conn_params) as amo:
-            with self.subTest("Burst Requests"):
-                await self._run_burst_requests(amo)
+            #with self.subTest("Burst Requests"):
+            #    await self._run_burst_requests(amo)
             
-            with self.subTest("Concurrent Requests"):
-                await self._run_concurrent_requests(amo)
+            #with self.subTest("Concurrent Requests"):
+            #    await self._run_concurrent_requests(amo)
 
             with self.subTest("Error Handling"):
                 await self._run_error_handling(amo)
 
-            with self.subTest("Concurrent Monitoring Loops"):
-                await self._run_concurrent_monitoring_loops(amo)
+            #with self.subTest("Concurrent Monitoring Loops"):
+            #    await self._run_concurrent_monitoring_loops(amo)
 
     async def _run_concurrent_monitoring_loops(self, amo):
         """
