@@ -208,11 +208,6 @@ class TestAsyncMomongaLoad(unittest.IsolatedAsyncioTestCase):
         """
         print("=== Error Handling Test ===")
 
-        # This test is integration-heavy (hardware). Skip unless explicitly enabled.
-        if not os.getenv('MOMONGA_INTEGRATION'):
-            print("  Skipping integration error-handling test (set MOMONGA_INTEGRATION=1 to enable)")
-            return
-
         # Define a synchronous helper that simulates a transport-level failure.
         def failing_sync():
             raise MomongaConnectionError('simulated failure from sync helper')
