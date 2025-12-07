@@ -81,6 +81,9 @@ class TestAsyncMomonga(unittest.IsolatedAsyncioTestCase):
             with self.subTest("Error Handling"):
                 await self._run_error_handling(amo)
 
+            with self.subTest("Cancellation Tolerance"):
+                await self._run_cancellation_test(amo)
+
             with self.subTest("Concurrent Monitoring Loops"):
                 await self._run_concurrent_monitoring_loops(amo)
 
@@ -225,6 +228,30 @@ class TestAsyncMomonga(unittest.IsolatedAsyncioTestCase):
             print(f"  [Pass] Worker recovered, result: {res}")
         except Exception as e:
             self.fail(f"Worker failed to recover: {e}")
+
+    async def _run_cancellation_test(self, amo):
+        print("\n  --- Testing Cancellation Tolerance ---")
+        
+        # 1. Start a task and cancel it immediately
+        print("  [Step 1] Starting and cancelling a task...")
+        task = asyncio.create_task(amo.get_instantaneous_power())
+        await asyncio.sleep(0.01) # Give it a tiny moment to start
+        task.cancel()
+        
+        try:
+            await task
+        except asyncio.CancelledError:
+            print("  [Pass] Task cancelled successfully")
+        except Exception as e:
+            self.fail(f"Task failed with unexpected exception: {e}")
+
+        # 2. Verify worker is still alive and can process new requests
+        print("  [Step 2] Verifying worker survival...")
+        try:
+            res = await amo.get_instantaneous_power()
+            print(f"  [Pass] Worker survived cancellation, result: {res}")
+        except Exception as e:
+            self.fail(f"Worker died after cancellation: {e}")
 
 if __name__ == '__main__':
     # Display usage help
