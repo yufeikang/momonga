@@ -1,16 +1,25 @@
 import asyncio
 import functools
 import logging
-from typing import Self, Any
+from typing import Any
 from concurrent.futures import Executor
 
 from .momonga import Momonga
-from .momonga_exception import MomongaSkScanFailure, MomongaDeviceBusyError, MomongaConnectionError
+from .momonga_exception import MomongaSkScanFailure, MomongaDeviceBusyError, MomongaNeedToReopen
 
 logger = logging.getLogger(__name__)
 
+__all__ = ["AsyncMomonga"]
+
 
 class AsyncMomonga:
+    """
+    Asynchronous wrapper for the Momonga client.
+
+    This class provides an asyncio-compatible interface to the synchronous Momonga client.
+    It uses a background worker task and an executor to run blocking operations without
+    blocking the asyncio event loop.
+    """
     _active_devices: set[str] = set()
 
     def __init__(self,
@@ -21,18 +30,6 @@ class AsyncMomonga:
                  reset_dev: bool = True,
                  executor: Executor | None = None,
                  ) -> None:
-        """
-        Async wrapper for Momonga client.
-
-        Args:
-            rbid: Route-B ID
-            pwd: Route-B Password
-            dev: Device path (e.g. '/dev/ttyUSB0' or 'COM3')
-            baudrate: Baudrate (default: 115200)
-            reset_dev: Whether to reset the device on open (default: True)
-            executor: Custom executor for running blocking operations.
-                      If None, the default loop executor is used.
-        """
         self._dev = dev
         self._sync_client = Momonga(rbid, pwd, dev, baudrate, reset_dev)
         self._executor = executor
@@ -41,19 +38,22 @@ class AsyncMomonga:
         self._closing: bool = False
         self._state_lock: asyncio.Lock = asyncio.Lock()
 
-    async def __aenter__(self) -> Self:
+    def __repr__(self) -> str:
+        return f"<AsyncMomonga dev={self._dev}>"
+
+    async def __aenter__(self) -> "AsyncMomonga":
         await self.open()
         return self
 
     async def __aexit__(self, exc_type, exc_val, exc_tb) -> None:
         await self.close()
 
-    async def _run_in_executor(self, func, *args, **kwargs):
+    async def _run_in_executor(self, func, *args, **kwargs) -> Any:
         loop = asyncio.get_running_loop()
         # Protect checking/starting worker vs close() with a small lock.
         async with self._state_lock:
             if self._closing:
-                raise MomongaConnectionError("Client is closing; cannot accept new tasks")
+                raise MomongaNeedToReopen("Client is closing; cannot accept new tasks")
 
             # Ensure worker is running
             if self._worker is None:
@@ -67,7 +67,6 @@ class AsyncMomonga:
         if self._worker is None:
             loop = asyncio.get_running_loop()
             self._worker = loop.create_task(self._worker_loop())
-            logger.debug("AsyncMomonga: started worker task %s", self._worker)
 
     async def _worker_loop(self) -> None:
         loop = asyncio.get_running_loop()
@@ -96,12 +95,8 @@ class AsyncMomonga:
                         fut.set_result(res)
                 finally:
                     self._queue.task_done()
-        except Exception:
-            logger.exception("AsyncMomonga._worker_loop encountered an unexpected exception")
-            raise
         finally:
-            pending = self._queue.qsize()
-            logger.debug("AsyncMomonga._worker_loop exiting, draining %d pending items", pending)
+            # Drain the queue and cancel pending futures if the worker stops unexpectedly
             while not self._queue.empty():
                 item = self._queue.get_nowait()
                 if item is None:
@@ -109,14 +104,10 @@ class AsyncMomonga:
                     continue
                 _, _, _, fut = item
                 if not fut.done():
-                    try:
-                        fut.set_exception(MomongaConnectionError("Worker stopped unexpectedly"))
-                    except Exception:
-                        logger.exception("Failed to set exception on pending future during worker drain")
+                    fut.set_exception(MomongaNeedToReopen("Worker stopped unexpectedly"))
                 self._queue.task_done()
-            logger.debug("AsyncMomonga._worker_loop drained queue and is exiting")
 
-    async def open(self, retry_count: int = 3, retry_interval: float = 2.0) -> Self:
+    async def open(self, retry_count: int = 3, retry_interval: float = 2.0) -> "AsyncMomonga":
         if self._dev in AsyncMomonga._active_devices:
             raise MomongaDeviceBusyError(f"Device {self._dev} is already in use by another AsyncMomonga instance")
 
@@ -253,11 +244,3 @@ class AsyncMomonga:
 
     async def request_to_get(self, properties: set) -> dict:
         return await self._run_in_executor(self._sync_client.request_to_get, properties)
-
-    async def submit_sync_call(self, func, *args, **kwargs):
-        """Public helper for tests to submit arbitrary synchronous call to the worker.
-
-        This is a thin wrapper around the private `_run_in_executor` to avoid
-        tests depending on internal APIs.
-        """
-        return await self._run_in_executor(func, *args, **kwargs)

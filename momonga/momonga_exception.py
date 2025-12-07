@@ -54,10 +54,6 @@ class MomongaDeviceBusyError(MomongaError):
     pass
 
 
-class MomongaConnectionError(ConnectionError):
-    pass
-
-
 class MomongaNeedToReopen(MomongaError):
     pass
 
