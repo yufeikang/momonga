@@ -1,7 +1,8 @@
 """
-Async load testing with real hardware
+Async integration testing with real hardware
 
-This test requires connection to an actual device.
+This test suite verifies the stability, concurrency, and error handling of the AsyncMomonga client.
+It requires connection to an actual device.
 Configure connection settings via environment variables:
 - MOMONGA_ROUTEB_ID: Route-B ID
 - MOMONGA_ROUTEB_PASSWORD: Route-B Password
@@ -9,7 +10,7 @@ Configure connection settings via environment variables:
 - MOMONGA_DEV_BAUDRATE: Baudrate (default: 115200)
 
 Example usage:
-    python -m pytest tests/test_async_load.py -v -s
+    python -m pytest tests/test_async.py -v -s
 """
 
 import asyncio
@@ -54,7 +55,7 @@ def get_connection_params() -> Dict[str, Any]:
     }
 
 class TestAsyncMomonga(unittest.IsolatedAsyncioTestCase):
-    """Async load testing with real hardware"""
+    """Async integration testing with real hardware"""
 
     @classmethod
     def setUpClass(cls):
@@ -66,10 +67,10 @@ class TestAsyncMomonga(unittest.IsolatedAsyncioTestCase):
 
     async def test_full_load_scenario(self):
         """
-        Execute all load tests in a single session
+        Execute all integration tests in a single session
         This reuses the connection for all tests, simulating a long-running application
         """
-        print("=== Starting Full Async Scenario ===")
+        print("=== Starting Full Async Integration Scenario ===")
 
         async with AsyncMomonga(**self.conn_params) as amo:
             with self.subTest("Burst Requests"):
