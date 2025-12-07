@@ -72,7 +72,8 @@ class AsyncMomonga:
 
     async def _worker_loop(self) -> None:
         loop = asyncio.get_running_loop()
-        print("DEBUG: Worker loop started")
+        my_task = asyncio.current_task()
+        print(f"DEBUG: Worker loop started in task {my_task}")
         try:
             while True:
                 print("DEBUG: Worker waiting for task...")
@@ -133,9 +134,14 @@ class AsyncMomonga:
                 # Detach self from the instance so a new worker can be started
                 # Always reset if we are the current worker, or if the worker is already done
                 current = asyncio.current_task()
-                print(f"DEBUG: Checking worker reset. self._worker={self._worker}, current={current}")
-                if self._worker == current or (self._worker and self._worker.done()):
-                    print("DEBUG: Resetting self._worker to None")
+                print(f"DEBUG: Checking worker reset. self._worker={self._worker}, current={current}, my_task={my_task}")
+                
+                # If we are the worker task (my_task), we should reset self._worker if it points to us.
+                if self._worker == my_task:
+                    print("DEBUG: Resetting self._worker to None (matched my_task)")
+                    self._worker = None
+                elif self._worker and self._worker.done():
+                    print("DEBUG: Resetting self._worker to None (worker is done)")
                     self._worker = None
 
     async def open(self, retry_count: int = 3, retry_interval: float = 2.0) -> "AsyncMomonga":
