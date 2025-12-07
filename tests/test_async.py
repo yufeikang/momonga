@@ -53,7 +53,7 @@ def get_connection_params() -> Dict[str, Any]:
         'baudrate': baudrate,
     }
 
-class TestAsyncMomongaLoad(unittest.IsolatedAsyncioTestCase):
+class TestAsyncMomonga(unittest.IsolatedAsyncioTestCase):
     """Async load testing with real hardware"""
 
     @classmethod
@@ -69,11 +69,20 @@ class TestAsyncMomongaLoad(unittest.IsolatedAsyncioTestCase):
         Execute all load tests in a single session
         This reuses the connection for all tests, simulating a long-running application
         """
-        print("=== Starting Full Load Scenario ===")
+        print("=== Starting Full Async Scenario ===")
 
-        with self.subTest("Error Handling"):
-            async with AsyncMomonga(**self.conn_params) as amo_err:
-                await self._run_error_handling(amo_err)
+        async with AsyncMomonga(**self.conn_params) as amo:
+            with self.subTest("Burst Requests"):
+                await self._run_burst_requests(amo)
+            
+            with self.subTest("Concurrent Requests"):
+                await self._run_concurrent_requests(amo)
+
+            with self.subTest("Error Handling"):
+                await self._run_error_handling(amo)
+
+            with self.subTest("Concurrent Monitoring Loops"):
+                await self._run_concurrent_monitoring_loops(amo)
 
     async def _run_concurrent_monitoring_loops(self, amo):
         """
@@ -209,6 +218,9 @@ class TestAsyncMomongaLoad(unittest.IsolatedAsyncioTestCase):
 
         # 2. Verify worker recovery
         print("  [Step 2] Verifying worker recovery...")
+
+        # DEBUG: Wait a bit to see if worker is stuck
+        # await asyncio.sleep(1.0)
 
         try:
             # Use a simple read command

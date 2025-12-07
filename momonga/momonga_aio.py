@@ -88,9 +88,11 @@ class AsyncMomonga:
                 try:
                     res = await loop.run_in_executor(self._executor, functools.partial(func, *args, **kwargs))
                 except Exception as e:
+                    print(f"DEBUG: Worker caught exception: {e}")
                     if not fut.done():
                         fut.set_exception(e)
                 else:
+                    print("DEBUG: Worker task completed successfully")
                     if not fut.done():
                         fut.set_result(res)
                 finally:
