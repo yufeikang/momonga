@@ -21,7 +21,6 @@ import unittest
 from typing import List, Dict, Any
 from momonga import AsyncMomonga
 import momonga
-from momonga.momonga_exception import MomongaNeedToReopen
 
 # Configure logging to display warnings and errors
 log_fmt = logging.Formatter('%(asctime)s | %(levelname)s | %(name)s - %(message)s')
@@ -209,11 +208,11 @@ class TestAsyncMomonga(unittest.IsolatedAsyncioTestCase):
         print("\n  --- Testing Error Handling ---")
 
         def failing_sync():
-            raise MomongaNeedToReopen("Simulated connection failure")
+            raise ValueError("Simulated connection failure")
 
         # 1. Verify exception propagation
         print("  [Step 1] Submitting failing task...")
-        with self.assertRaises(MomongaNeedToReopen):
+        with self.assertRaises(ValueError):
             await amo._run_in_executor(failing_sync)
         print("  [Pass] Exception propagated correctly")
 
