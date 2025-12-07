@@ -243,3 +243,11 @@ class AsyncMomonga:
 
     async def request_to_get(self, properties: set) -> dict:
         return await self._run_in_executor(self._sync_client.request_to_get, properties)
+
+    async def submit_sync_call(self, func, *args, **kwargs):
+        """Public helper for tests to submit arbitrary synchronous call to the worker.
+
+        This is a thin wrapper around the private `_run_in_executor` to avoid
+        tests depending on internal APIs.
+        """
+        return await self._run_in_executor(func, *args, **kwargs)
