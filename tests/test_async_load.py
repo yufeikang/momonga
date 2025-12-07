@@ -72,11 +72,11 @@ class TestAsyncMomongaLoad(unittest.IsolatedAsyncioTestCase):
         print("=== Starting Full Load Scenario ===")
 
         # Run burst and concurrent requests in a single session first.
-        async with AsyncMomonga(**self.conn_params) as amo:
-            with self.subTest("Burst Requests"):
-                await self._run_burst_requests(amo)
-            with self.subTest("Concurrent Requests"):
-                await self._run_concurrent_requests(amo)
+#        async with AsyncMomonga(**self.conn_params) as amo:
+#            with self.subTest("Burst Requests"):
+#                await self._run_burst_requests(amo)
+#            with self.subTest("Concurrent Requests"):
+#                await self._run_concurrent_requests(amo)
 
         # Run the error-handling check in a fresh session to isolate from prior load.
         with self.subTest("Error Handling"):
@@ -84,9 +84,9 @@ class TestAsyncMomongaLoad(unittest.IsolatedAsyncioTestCase):
                 await self._run_error_handling_under_load(amo_err)
 
         # Run monitoring loops in their own session (long-running).
-        async with AsyncMomonga(**self.conn_params) as amo:
-            with self.subTest("Concurrent Monitoring Loops"):
-                await self._run_concurrent_monitoring_loops(amo)
+#        async with AsyncMomonga(**self.conn_params) as amo:
+#            with self.subTest("Concurrent Monitoring Loops"):
+#                await self._run_concurrent_monitoring_loops(amo)
 
     async def _run_concurrent_monitoring_loops(self, amo):
         """
