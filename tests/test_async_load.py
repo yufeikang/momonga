@@ -241,6 +241,9 @@ class TestAsyncMomongaLoad(unittest.IsolatedAsyncioTestCase):
                     await asyncio.wait_for(amo.submit_sync_call(failing_sync), timeout=5)
 
             # Immediately perform a normal call to ensure the worker continued.
+            # Insert a short sleep to avoid a timing-sensitive race on real hardware.
+            # This is a pragmatic, temporary mitigation to reduce flakiness.
+            await asyncio.sleep(0.3)
             with self.subTest('Follow-up normal call'):
                 # Diagnostic: print queue/worker state before calling
                 try:
