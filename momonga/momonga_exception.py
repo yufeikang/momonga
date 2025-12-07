@@ -50,6 +50,10 @@ class MomongaKeyError(KeyError):
     pass
 
 
+class MomongaDeviceBusyError(MomongaError):
+    pass
+
+
 class MomongaNeedToReopen(MomongaError):
     pass
 

@@ -40,6 +40,36 @@ with momonga.Momonga(rbid, pwd, dev) as mo:
         time.sleep(60)
 ```
 
+# Async Example
+下記のコードは非同期で瞬時電力（20秒間隔）と積算電力量（60秒間隔）を取得して表示します。デバイスは複数のリクエストを同時に処理できませんが、AsyncMomongaインスタンスは内部でキューを使ってリクエストを直列化しているため、ユーザーコードからは非同期（並行）にリクエストを投げることができます。なお、1つのデバイスに対して同時に複数のAsyncMomongaインスタンスを作ることはできません。
+```python3
+import asyncio
+from momonga import AsyncMomonga
+
+async def main():
+    rbid = 'SET YOUR ROUTE B ID'
+    pwd  = 'SET YOUR ROUTE B PASSWORD'
+    dev  = '/dev/ttyUSB0' # in a case of RaspberryPi OS
+
+    async with AsyncMomonga(rbid, pwd, dev) as amo:
+        async def loop_power():
+            while True:
+                res = await amo.get_instantaneous_power()
+                print('Power: %0.1fW' % res)
+                await asyncio.sleep(20)
+
+        async def loop_energy():
+            while True:
+                res = await amo.get_measured_cumulative_energy()
+                print('Energy: %0.1fkWh' % res)
+                await asyncio.sleep(60)
+
+        await asyncio.gather(loop_power(), loop_energy())
+
+if __name__ == '__main__':
+    asyncio.run(main())
+```
+
 ### Arguments
 - rbid: BルートID
 - pwd: Bルートパスワード

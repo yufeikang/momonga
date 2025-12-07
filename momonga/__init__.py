@@ -9,3 +9,4 @@ from .momonga import (
 )
 
 from .momonga_exception import *
+from .momonga_aio import AsyncMomonga
